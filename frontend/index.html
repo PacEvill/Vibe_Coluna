@@ -1,0 +1,1206 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Mobile Web App & PWA metadata -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#1e1e1e">
+    <title>Vibe Coluna — Monitoramento Postural</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <style>
+        /* ===== RESET & BASE ===== */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            /* Light Theme (Fallback) */
+            --bg: #f3f2f1;
+            --card-bg: #ffffff;
+            --card-shadow: 0 1.6px 3.6px 0 rgba(0,0,0,.132), 0 0.3px 0.9px 0 rgba(0,0,0,.108);
+            --card-shadow-hover: 0 8px 16px rgba(0,0,0,0.08);
+            --card-radius: 8px;
+            --header-bg: rgba(37, 36, 35, 0.85);
+            --header-border: rgba(255, 255, 255, 0.05);
+            --blue: #118dff;
+            --red: #d13438;
+            --green: #107c41;
+            --teal: #00b8aa;
+            --dark-blue: #12239e;
+            --yellow: #ffb900;
+            --text-primary: #323130;
+            --text-secondary: #605e5c;
+            --text-tertiary: #a19f9d;
+            --border: #edebe9;
+            --chart-grid: #edebe9;
+            --tooltip-bg: rgba(37, 36, 35, 0.95);
+            --font: 'Segoe UI', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            
+            /* Status Badges (Light) */
+            --badge-alert-bg: #fde7e9;
+            --badge-ok-bg: #e6f4ea;
+            --table-hover: #faf9f8;
+        }
+
+        :root[data-theme="dark"] {
+            /* Dark Theme (Default) */
+            --bg: #111111;
+            --card-bg: #1e1e1e;
+            --card-shadow: 0 4px 8px rgba(0,0,0,0.4);
+            --card-shadow-hover: 0 8px 16px rgba(0,0,0,0.6);
+            --header-bg: rgba(24, 24, 24, 0.85);
+            --header-border: rgba(255, 255, 255, 0.05);
+            --text-primary: #ffffff;
+            --text-secondary: #cccccc;
+            --text-tertiary: #888888;
+            --border: #333333;
+            --chart-grid: #333333;
+            --tooltip-bg: rgba(51, 51, 51, 0.95);
+
+            /* Status Badges (Dark) */
+            --badge-alert-bg: rgba(209, 52, 56, 0.2);
+            --badge-ok-bg: rgba(16, 124, 65, 0.2);
+            --table-hover: #252525;
+        }
+
+        body {
+            font-family: var(--font);
+            background: var(--bg);
+            color: var(--text-primary);
+            line-height: 1.5;
+            min-height: 100vh;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        /* ===== HEADER ===== */
+        .header {
+            background: var(--header-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--header-border);
+            color: #fff;
+            padding: 0 32px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-icon {
+            color: var(--yellow);
+            font-size: 20px;
+        }
+
+        .header-title {
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+        }
+
+        .header-separator {
+            color: var(--text-tertiary);
+            font-weight: 300;
+        }
+
+        .header-subtitle {
+            font-size: 13px;
+            font-weight: 400;
+            color: #d2d0ce;
+        }
+
+        .header-right {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        
+        .theme-toggle {
+            background: none;
+            border: none;
+            color: #d2d0ce;
+            cursor: pointer;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 4px;
+            border-radius: 4px;
+            transition: color 0.2s, background 0.2s;
+        }
+        
+        .theme-toggle:hover {
+            color: #fff;
+            background: rgba(255,255,255,0.1);
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #d2d0ce;
+            padding-left: 16px;
+            border-left: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--green);
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.error { background: var(--red); animation: none; }
+        .status-dot.loading { background: var(--yellow); }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        /* ===== MAIN LAYOUT ===== */
+        .dashboard {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px 32px 48px;
+        }
+
+        .page-title-row {
+            display: flex;
+            align-items: baseline;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+
+        .page-title {
+            font-size: 22px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .last-update {
+            font-size: 12px;
+            color: var(--text-tertiary);
+        }
+
+        /* ===== GRID ===== */
+        .row {
+            display: grid;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .row-4 { grid-template-columns: repeat(4, 1fr); }
+        .row-2 { grid-template-columns: 1fr 1fr; }
+        .row-wide-narrow { grid-template-columns: 1.6fr 1fr; }
+
+        /* ===== CARD ===== */
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--card-radius);
+            box-shadow: var(--card-shadow);
+            padding: 20px 24px;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--card-shadow-hover);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+
+        .card-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .card-icon {
+            font-size: 16px;
+            color: var(--text-tertiary);
+        }
+
+        /* ===== KPI CARDS ===== */
+        .kpi-value {
+            font-size: 36px;
+            font-weight: 700;
+            line-height: 1.2;
+            margin-top: 8px;
+            color: var(--text-primary);
+        }
+
+        .kpi-unit {
+            font-size: 16px;
+            font-weight: 400;
+            color: var(--text-secondary);
+            margin-left: 4px;
+        }
+
+        .kpi-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 2px 10px;
+            border-radius: 12px;
+            margin-top: 8px;
+        }
+
+        .kpi-badge.alert {
+            background: var(--badge-alert-bg);
+            color: var(--red);
+        }
+
+        .kpi-badge.ok {
+            background: var(--badge-ok-bg);
+            color: var(--green);
+        }
+
+        .kpi-accent {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 3px;
+        }
+
+        .accent-blue { background: linear-gradient(90deg, #118dff, #005a9e); }
+        .accent-red { background: linear-gradient(90deg, #d13438, #a4262c); }
+        .accent-teal { background: linear-gradient(90deg, #00b8aa, #008272); }
+        .accent-green { background: linear-gradient(90deg, #107c41, #0b5a2f); }
+
+        /* ===== CHART CARDS ===== */
+        .chart-card {
+            padding: 20px 24px 16px;
+        }
+
+        .chart-card .card-title {
+            margin-bottom: 16px;
+        }
+
+        .chart-container {
+            position: relative;
+            width: 100%;
+            height: 260px;
+        }
+
+        .chart-container-donut {
+            position: relative;
+            width: 100%;
+            height: 260px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* ===== TABLE ===== */
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        .data-table thead {
+            background: var(--table-hover);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .data-table th {
+            text-align: left;
+            padding: 10px 16px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            white-space: nowrap;
+        }
+
+        .data-table td {
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-primary);
+        }
+
+        .data-table tbody tr:hover {
+            background: var(--table-hover);
+        }
+
+        .status-cell {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-icon-ok { color: var(--green); }
+        .status-icon-alert { color: var(--red); }
+
+        .status-text-ok {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--green);
+        }
+
+        .status-text-alert {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--red);
+        }
+
+        /* ===== SKELETON / LOADING ===== */
+        .skeleton {
+            background: linear-gradient(90deg, #edebe9 25%, #f3f2f1 50%, #edebe9 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 4px;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        .skeleton-value {
+            width: 120px;
+            height: 40px;
+            margin-top: 8px;
+        }
+
+        .skeleton-badge {
+            width: 72px;
+            height: 22px;
+            margin-top: 8px;
+        }
+
+        /* ===== ERROR BANNER ===== */
+        .error-banner {
+            background: #fde7e9;
+            color: var(--red);
+            padding: 10px 24px;
+            font-size: 13px;
+            display: none;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .error-banner.visible {
+            display: flex;
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 1100px) {
+            .row-4 { grid-template-columns: repeat(2, 1fr); }
+            .row-wide-narrow { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 700px) {
+            .dashboard { padding: 16px; }
+            .row-4 { grid-template-columns: 1fr; }
+            .row-2 { grid-template-columns: 1fr; }
+            .header { padding: 0 16px; }
+            .kpi-value { font-size: 28px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- HEADER -->
+    <header class="header">
+        <i class="bi bi-cpu header-icon"></i>
+        <span class="header-title">Nexus Control</span>
+        <span class="header-separator">|</span>
+        <span class="header-subtitle">Monitoramento Postural IoT</span>
+        <div class="header-right">
+            <button class="theme-toggle" id="notificationToggle" aria-label="Ativar Notificações" style="margin-right: 8px;">
+                <i class="bi bi-bell-slash-fill" id="notificationIcon"></i>
+            </button>
+            <button class="theme-toggle" id="themeToggle" aria-label="Alternar tema">
+                <i class="bi bi-moon-fill" id="themeIcon"></i>
+            </button>
+            <div class="status-indicator">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">Conectando...</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- ERROR BANNER -->
+    <div class="error-banner" id="errorBanner">
+        <i class="bi bi-exclamation-triangle-fill"></i>
+        <span id="errorMessage">Erro ao conectar com o servidor.</span>
+    </div>
+
+    <!-- DASHBOARD -->
+    <main class="dashboard">
+
+        <div class="page-title-row">
+            <h1 class="page-title">Monitoramento de Postura</h1>
+            <span class="last-update" id="lastUpdate">Aguardando dados...</span>
+        </div>
+
+        <!-- ROW 1: KPI CARDS -->
+        <div class="row row-4">
+
+            <!-- Distância Atual -->
+            <div class="card">
+                <div class="kpi-accent accent-blue"></div>
+                <div class="card-header">
+                    <span class="card-title">Distância Atual</span>
+                    <i class="bi bi-rulers card-icon"></i>
+                </div>
+                <div class="kpi-value" id="kpiDistance">
+                    <div class="skeleton skeleton-value"></div>
+                </div>
+                <div id="kpiBadge">
+                    <div class="skeleton skeleton-badge"></div>
+                </div>
+            </div>
+
+            <!-- Contador de Alertas -->
+            <div class="card">
+                <div class="kpi-accent accent-red"></div>
+                <div class="card-header">
+                    <span class="card-title">Contador de Alertas</span>
+                    <i class="bi bi-exclamation-triangle card-icon"></i>
+                </div>
+                <div class="kpi-value" id="kpiAlerts">
+                    <div class="skeleton skeleton-value"></div>
+                </div>
+                <div style="margin-top:8px;font-size:12px;color:var(--text-tertiary)" id="kpiAlertsSubtext">—</div>
+            </div>
+
+            <!-- Média de Ajuste -->
+            <div class="card">
+                <div class="kpi-accent accent-teal"></div>
+                <div class="card-header">
+                    <span class="card-title">Média de Ajuste</span>
+                    <i class="bi bi-graph-up card-icon"></i>
+                </div>
+                <div class="kpi-value" id="kpiAvgDistance">
+                    <div class="skeleton skeleton-value"></div>
+                </div>
+                <div style="margin-top:8px;font-size:12px;color:var(--text-tertiary)">Média geral (cm)</div>
+            </div>
+
+            <!-- Taxa de Conformidade -->
+            <div class="card">
+                <div class="kpi-accent accent-green"></div>
+                <div class="card-header">
+                    <span class="card-title">Taxa de Conformidade</span>
+                    <i class="bi bi-check-circle card-icon"></i>
+                </div>
+                <div class="kpi-value" id="kpiCompliance">
+                    <div class="skeleton skeleton-value"></div>
+                </div>
+                <div style="margin-top:8px;font-size:12px;color:var(--text-tertiary)">Posturas corretas / total</div>
+            </div>
+
+        </div>
+
+        <!-- ROW 2: BAR + LINE CHARTS -->
+        <div class="row row-2">
+
+            <div class="card chart-card">
+                <span class="card-title">Quantidade de Posturas Erradas por Hora</span>
+                <div class="chart-container">
+                    <canvas id="chartAlertsByHour"></canvas>
+                </div>
+            </div>
+
+            <div class="card chart-card">
+                <span class="card-title">Evolução da Média de Ajuste</span>
+                <div class="chart-container">
+                    <canvas id="chartRunningAvg"></canvas>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ROW 3: AREA + DONUT -->
+        <div class="row row-wide-narrow">
+
+            <div class="card chart-card">
+                <span class="card-title">Timeline de Distância</span>
+                <div class="chart-container">
+                    <canvas id="chartTimeline"></canvas>
+                </div>
+            </div>
+
+            <div class="card chart-card">
+                <span class="card-title">Distribuição: Correta vs Incorreta</span>
+                <div class="chart-container-donut">
+                    <canvas id="chartDonut"></canvas>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ROW 4: TABLE -->
+        <div class="card" style="padding: 0; overflow: hidden;">
+            <div style="padding: 20px 24px 12px;">
+                <span class="card-title">Últimas Leituras</span>
+            </div>
+            <div class="table-wrapper">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Timestamp</th>
+                            <th>Sensor</th>
+                            <th>Distância (cm)</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="readingsTableBody">
+                        <tr>
+                            <td colspan="5" style="text-align:center;color:var(--text-tertiary);padding:32px;">
+                                Carregando leituras...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // const GRAPHQL_URL = 'https://YOUR-BACKEND-URL/graphql/';
+        const GRAPHQL_URL = 'http://localhost:8000/graphql/';
+
+        const THRESHOLD_CM = 25; // Alert threshold in cm
+        const REFRESH_INTERVAL = 2000; // ms
+
+        // ============================================================
+        // CHART INSTANCES
+        // ============================================================
+        let chartAlertsByHour = null, chartRunningAvg = null, chartTimeline = null, chartDonut = null;
+
+        // ============================================================
+        // THEME TOGGLE (Dark Mode Default)
+        // ============================================================
+        const themeToggle = document.getElementById('themeToggle');
+        const themeIcon = document.getElementById('themeIcon');
+        
+        // Function to set theme
+        function setTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
+            
+            if (theme === 'dark') {
+                themeIcon.className = 'bi bi-brightness-high-fill';
+                Chart.defaults.color = '#cccccc';
+                if (!Chart.defaults.scale) Chart.defaults.scale = {};
+                Chart.defaults.scale.grid = { color: '#333333' };
+            } else {
+                themeIcon.className = 'bi bi-moon-fill';
+                Chart.defaults.color = '#605e5c';
+                if (!Chart.defaults.scale) Chart.defaults.scale = {};
+                Chart.defaults.scale.grid = { color: '#edebe9' };
+            }
+            
+            // Re-render charts to apply new theme colors
+            if (chartAlertsByHour) {
+                chartAlertsByHour.destroy();
+                chartRunningAvg.destroy();
+                chartTimeline.destroy();
+                chartDonut.destroy();
+                initCharts(); // Recreate them with new defaults
+                if (window.lastFetchedData) {
+                    updateDashboard(window.lastFetchedData); // Restore data
+                }
+            }
+        }
+
+        // Initialize Theme (Default: dark)
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        setTheme(savedTheme);
+
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
+            setTheme(currentTheme === 'dark' ? 'light' : 'dark');
+        });
+
+        // ============================================================
+        // BROWSER NOTIFICATIONS
+        // ============================================================
+        const notificationToggle = document.getElementById('notificationToggle');
+        const notificationIcon = document.getElementById('notificationIcon');
+        let notificationsEnabled = false;
+        let lastReadingId = null;
+
+        if ('Notification' in window) {
+            if (Notification.permission === 'granted') {
+                notificationsEnabled = true;
+                notificationIcon.className = 'bi bi-bell-fill';
+                notificationIcon.style.color = '#ffb900';
+            }
+        } else {
+            notificationToggle.style.display = 'none';
+        }
+
+        notificationToggle.addEventListener('click', async () => {
+            if (!('Notification' in window)) return;
+
+            if (Notification.permission === 'default') {
+                const permission = await Notification.requestPermission();
+                if (permission === 'granted') {
+                    notificationsEnabled = true;
+                    notificationIcon.className = 'bi bi-bell-fill';
+                    notificationIcon.style.color = '#ffb900';
+                    new Notification("Nexus Control", {
+                        body: "Notificações ativadas! Você será alertado caso sua postura esteja incorreta.",
+                        icon: 'https://cdn-icons-png.flaticon.com/512/564/564619.png'
+                    });
+                }
+            } else if (Notification.permission === 'granted') {
+                // Alternar estado internamente se o usuário quiser desativar temporariamente
+                notificationsEnabled = !notificationsEnabled;
+                if (notificationsEnabled) {
+                    notificationIcon.className = 'bi bi-bell-fill';
+                    notificationIcon.style.color = '#ffb900';
+                    new Notification("Nexus Control", { body: "Notificações de postura ativadas." });
+                } else {
+                    notificationIcon.className = 'bi bi-bell-slash-fill';
+                    notificationIcon.style.color = '';
+                }
+            } else {
+                alert("Por favor, permita as notificações nas configurações do seu navegador para usar este recurso.");
+            }
+        });
+
+        function checkAlertNotification(latestReading) {
+            if (!latestReading || !notificationsEnabled) return;
+            if (latestReading.id === lastReadingId) return;
+
+            if (latestReading.isAlert) {
+                new Notification("Alerta de Postura! ⚠️", {
+                    body: `Sua postura está incorreta. Distância: ${parseFloat(latestReading.distance).toFixed(1)} cm. Endireite as costas!`,
+                    icon: 'https://cdn-icons-png.flaticon.com/512/564/564619.png'
+                });
+            }
+            lastReadingId = latestReading.id;
+        }
+
+        // ============================================================
+        // CHART.JS GLOBAL DEFAULTS
+        // ============================================================
+        Chart.defaults.font.family = "'Segoe UI', 'Inter', sans-serif";
+        Chart.defaults.font.size = 12;
+        Chart.defaults.color = savedTheme === 'dark' ? '#cccccc' : '#605e5c';
+        Chart.defaults.plugins.legend.display = false;
+        Chart.defaults.plugins.tooltip.backgroundColor = 'var(--tooltip-bg)';
+        Chart.defaults.plugins.tooltip.titleFont = { weight: '600', size: 12 };
+        Chart.defaults.plugins.tooltip.bodyFont = { size: 11 };
+        Chart.defaults.plugins.tooltip.cornerRadius = 4;
+        Chart.defaults.plugins.tooltip.padding = 10;
+        Chart.defaults.scale.grid = { color: savedTheme === 'dark' ? '#333333' : '#edebe9' };
+        Chart.defaults.scale.border = { display: false };
+
+        function initCharts() {
+            // --- Bar Chart: Alerts by Hour ---
+            const ctxBar = document.getElementById('chartAlertsByHour').getContext('2d');
+            chartAlertsByHour = new Chart(ctxBar, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Posturas Erradas',
+                        data: [],
+                        backgroundColor: '#d13438',
+                        borderRadius: 3,
+                        maxBarThickness: 40
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            ticks: { font: { size: 11 } }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1,
+                                font: { size: 11 }
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                title: (items) => `Hora: ${items[0].label}`,
+                                label: (item) => `${item.raw} alerta(s)`
+                            }
+                        }
+                    }
+                }
+            });
+
+            // --- Line Chart: Running Average ---
+            const ctxLine = document.getElementById('chartRunningAvg').getContext('2d');
+            chartRunningAvg = new Chart(ctxLine, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Média Móvel',
+                        data: [],
+                        borderColor: '#00b8aa',
+                        backgroundColor: 'rgba(0,184,170,0.08)',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        pointRadius: 3,
+                        pointBackgroundColor: '#00b8aa',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 1.5,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { ticks: { font: { size: 10 }, maxRotation: 45 } },
+                        y: {
+                            beginAtZero: true,
+                            ticks: { font: { size: 11 } },
+                            title: { display: true, text: 'cm', font: { size: 11 } }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: (item) => `Média: ${item.raw.toFixed(1)} cm`
+                            }
+                        }
+                    }
+                }
+            });
+
+            // --- Area Chart: Distance Timeline ---
+            const ctxArea = document.getElementById('chartTimeline').getContext('2d');
+            chartTimeline = new Chart(ctxArea, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'Distância',
+                            data: [],
+                            borderColor: '#118dff',
+                            backgroundColor: 'rgba(17,141,255,0.1)',
+                            borderWidth: 2,
+                            tension: 0.25,
+                            pointRadius: 3,
+                            pointBackgroundColor: '#118dff',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 1.5,
+                            fill: true
+                        },
+                        {
+                            label: 'Limiar (25 cm)',
+                            data: [],
+                            borderColor: '#d13438',
+                            borderWidth: 2,
+                            borderDash: [8, 4],
+                            pointRadius: 0,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { ticks: { font: { size: 10 }, maxRotation: 45 } },
+                        y: {
+                            beginAtZero: true,
+                            ticks: { font: { size: 11 } },
+                            title: { display: true, text: 'cm', font: { size: 11 } }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            align: 'end',
+                            labels: {
+                                boxWidth: 12,
+                                boxHeight: 2,
+                                usePointStyle: false,
+                                font: { size: 11 },
+                                padding: 16
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (item) => {
+                                    if (item.datasetIndex === 1) return `Limiar: ${THRESHOLD_CM} cm`;
+                                    return `Distância: ${item.raw} cm`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // --- Donut Chart ---
+            const ctxDonut = document.getElementById('chartDonut').getContext('2d');
+            chartDonut = new Chart(ctxDonut, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Corretas', 'Incorretas'],
+                    datasets: [{
+                        data: [0, 0],
+                        backgroundColor: ['#107c41', '#d13438'],
+                        borderWidth: 0,
+                        hoverOffset: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '65%',
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 10,
+                                boxHeight: 10,
+                                usePointStyle: true,
+                                pointStyle: 'circle',
+                                font: { size: 12 },
+                                padding: 20
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (item) => {
+                                    const total = item.dataset.data.reduce((a, b) => a + b, 0);
+                                    const pct = total > 0 ? ((item.raw / total) * 100).toFixed(1) : 0;
+                                    return `${item.label}: ${item.raw} (${pct}%)`;
+                                }
+                            }
+                        }
+                    }
+                },
+                plugins: [{
+                    id: 'donutCenterText',
+                    afterDraw(chart) {
+                        const { ctx, width, height } = chart;
+                        const dataset = chart.data.datasets[0].data;
+                        const total = dataset.reduce((a, b) => a + b, 0);
+                        if (total === 0) return;
+                        const correct = dataset[0];
+                        const pct = ((correct / total) * 100).toFixed(0);
+
+                        ctx.save();
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+
+                        const centerX = width / 2;
+                        const centerY = height / 2 - 14;
+
+                        ctx.font = "700 28px 'Segoe UI', 'Inter', sans-serif";
+                        ctx.fillStyle = '#323130';
+                        ctx.fillText(`${pct}%`, centerX, centerY);
+
+                        ctx.font = "400 11px 'Segoe UI', 'Inter', sans-serif";
+                        ctx.fillStyle = '#605e5c';
+                        ctx.fillText('Corretas', centerX, centerY + 22);
+
+                        ctx.restore();
+                    }
+                }]
+            });
+        }
+
+        // ============================================================
+        // DATA FETCHING
+        // ============================================================
+        async function graphqlQuery(query) {
+            const response = await fetch(GRAPHQL_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query })
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const json = await response.json();
+            if (json.errors) throw new Error(json.errors[0].message);
+            return json.data;
+        }
+
+        async function fetchAllData() {
+            const query = `{
+                latestReadings(limit: 20) { id timestamp distance isAlert sensorId }
+                stats { totalReadings totalAlerts avgDistance complianceRate }
+                alertsByHour { hour count }
+            }`;
+            return graphqlQuery(query);
+        }
+
+        // ============================================================
+        // UI UPDATERS
+        // ============================================================
+        function setStatus(state) {
+            const dot = document.getElementById('statusDot');
+            const text = document.getElementById('statusText');
+            const banner = document.getElementById('errorBanner');
+            const errMsg = document.getElementById('errorMessage');
+
+            dot.className = 'status-dot';
+            banner.classList.remove('visible');
+
+            switch (state) {
+                case 'ok':
+                    // Just basic status-dot is the green pulse
+                    text.textContent = 'Ao vivo';
+                    break;
+                case 'loading':
+                    dot.classList.add('loading');
+                    text.textContent = 'Conectando...';
+                    break;
+                case 'error':
+                    dot.classList.add('error');
+                    text.textContent = 'Erro';
+                    banner.classList.add('visible');
+                    break;
+            }
+        }
+
+        function setErrorMessage(msg) {
+            document.getElementById('errorMessage').textContent = msg;
+        }
+
+        function updateKPIs(stats, latestReadings) {
+            // --- Distância Atual ---
+            const kpiDist = document.getElementById('kpiDistance');
+            const kpiBadge = document.getElementById('kpiBadge');
+
+            if (latestReadings.length > 0) {
+                const latest = latestReadings[0];
+                kpiDist.innerHTML = `${parseFloat(latest.distance).toFixed(1)}<span class="kpi-unit">cm</span>`;
+
+                if (latest.isAlert) {
+                    kpiBadge.innerHTML = `<span class="kpi-badge alert"><i class="bi bi-exclamation-circle-fill"></i> ALERTA</span>`;
+                } else {
+                    kpiBadge.innerHTML = `<span class="kpi-badge ok"><i class="bi bi-check-circle-fill"></i> OK</span>`;
+                }
+            } else {
+                kpiDist.innerHTML = `—<span class="kpi-unit">cm</span>`;
+                kpiBadge.innerHTML = '';
+            }
+
+            // --- Alertas ---
+            const kpiAlerts = document.getElementById('kpiAlerts');
+            kpiAlerts.textContent = stats.totalAlerts.toLocaleString('pt-BR');
+            document.getElementById('kpiAlertsSubtext').textContent =
+                `de ${stats.totalReadings.toLocaleString('pt-BR')} leituras totais`;
+
+            // --- Média ---
+            const kpiAvg = document.getElementById('kpiAvgDistance');
+            kpiAvg.innerHTML = `${parseFloat(stats.avgDistance).toFixed(1)}<span class="kpi-unit">cm</span>`;
+
+            // --- Conformidade ---
+            const kpiComp = document.getElementById('kpiCompliance');
+            kpiComp.innerHTML = `${parseFloat(stats.complianceRate).toFixed(1)}<span class="kpi-unit">%</span>`;
+        }
+
+        function updateAlertsByHourChart(alertsByHour) {
+            const sorted = [...alertsByHour].sort((a, b) => a.hour - b.hour);
+            const labels = sorted.map(a => `${String(a.hour).padStart(2, '0')}:00`);
+            const data = sorted.map(a => a.count);
+
+            chartAlertsByHour.data.labels = labels;
+            chartAlertsByHour.data.datasets[0].data = data;
+            chartAlertsByHour.update('none');
+        }
+
+        function updateRunningAvgChart(readings) {
+            const reversed = [...readings].reverse(); // oldest first
+            const labels = [];
+            const data = [];
+            let sum = 0;
+
+            reversed.forEach((r, i) => {
+                sum += parseFloat(r.distance);
+                data.push(sum / (i + 1));
+                labels.push(formatTime(r.timestamp));
+            });
+
+            chartRunningAvg.data.labels = labels;
+            chartRunningAvg.data.datasets[0].data = data;
+            chartRunningAvg.update('none');
+        }
+
+        function updateTimelineChart(readings) {
+            const reversed = [...readings].reverse();
+            const labels = reversed.map(r => formatTime(r.timestamp));
+            const distances = reversed.map(r => parseFloat(r.distance));
+            const threshold = reversed.map(() => THRESHOLD_CM);
+
+            chartTimeline.data.labels = labels;
+            chartTimeline.data.datasets[0].data = distances;
+            chartTimeline.data.datasets[1].data = threshold;
+            chartTimeline.update('none');
+        }
+
+        function updateDonutChart(stats) {
+            const correct = stats.totalReadings - stats.totalAlerts;
+            const incorrect = stats.totalAlerts;
+
+            chartDonut.data.datasets[0].data = [correct, incorrect];
+            chartDonut.update('none');
+        }
+
+        function updateTable(readings) {
+            const tbody = document.getElementById('readingsTableBody');
+
+            if (readings.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:var(--text-tertiary);padding:32px;">Nenhuma leitura encontrada.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = readings.map((r, i) => {
+                const distance = parseFloat(r.distance).toFixed(1);
+                const statusClass = r.isAlert ? 'alert' : 'ok';
+                const statusIcon = r.isAlert
+                    ? '<i class="bi bi-exclamation-triangle-fill status-icon-alert"></i>'
+                    : '<i class="bi bi-check-circle-fill status-icon-ok"></i>';
+                const statusLabel = r.isAlert ? 'Alerta' : 'OK';
+                const statusTextClass = r.isAlert ? 'status-text-alert' : 'status-text-ok';
+
+                return `
+                    <tr>
+                        <td style="color:var(--text-tertiary)">${i + 1}</td>
+                        <td>${formatTimestamp(r.timestamp)}</td>
+                        <td>${r.sensorId || '—'}</td>
+                        <td><strong>${distance}</strong> cm</td>
+                        <td>
+                            <div class="status-cell">
+                                ${statusIcon}
+                                <span class="${statusTextClass}">${statusLabel}</span>
+                            </div>
+                        </td>
+                    </tr>`;
+            }).join('');
+        }
+
+        function updateLastUpdateTime() {
+            const now = new Date();
+            document.getElementById('lastUpdate').textContent =
+                `Atualizado: ${now.toLocaleTimeString('pt-BR')}`;
+        }
+
+        // ============================================================
+        // HELPERS
+        // ============================================================
+        function formatTime(ts) {
+            try {
+                const d = new Date(ts);
+                return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            } catch {
+                return ts;
+            }
+        }
+
+        function formatTimestamp(ts) {
+            try {
+                const d = new Date(ts);
+                return d.toLocaleString('pt-BR', {
+                    day: '2-digit', month: '2-digit', year: 'numeric',
+                    hour: '2-digit', minute: '2-digit', second: '2-digit'
+                });
+            } catch {
+                return ts;
+            }
+        }
+
+        // ============================================================
+        // MAIN LOOP
+        // ============================================================
+        let isFirstLoad = true;
+        let consecutiveErrors = 0;
+
+        async function fetchData() {
+            try {
+                if (isFirstLoad) setStatus('loading');
+
+                const data = await fetchAllData();
+                window.lastFetchedData = data;
+
+                consecutiveErrors = 0;
+                setStatus('ok');
+
+                updateKPIs(data.stats, data.latestReadings);
+                updateAlertsByHourChart(data.alertsByHour);
+                updateRunningAvgChart(data.latestReadings);
+                updateTimelineChart(data.latestReadings);
+                updateDonutChart(data.stats);
+                updateTable(data.latestReadings);
+                updateLastUpdateTime();
+
+                if (data.latestReadings && data.latestReadings.length > 0) {
+                    checkAlertNotification(data.latestReadings[0]);
+                }
+
+                isFirstLoad = false;
+            } catch (err) {
+                consecutiveErrors++;
+                console.error('Fetch error:', err);
+
+                if (consecutiveErrors >= 2 || isFirstLoad) {
+                    setStatus('error');
+                    setErrorMessage(`Erro ao conectar: ${err.message}. Tentando novamente...`);
+                }
+            }
+        }
+        
+        function updateDashboard(data) {
+            updateKPIs(data.stats, data.latestReadings);
+            updateAlertsByHourChart(data.alertsByHour);
+            updateRunningAvgChart(data.latestReadings);
+            updateTimelineChart(data.latestReadings);
+            updateDonutChart(data.stats);
+            updateTable(data.latestReadings);
+        }
+
+        // ============================================================
+        // INIT
+        // ============================================================
+        document.addEventListener('DOMContentLoaded', () => {
+            initCharts();
+            fetchData();
+            setInterval(fetchData, REFRESH_INTERVAL);
+        });
+    </script>
+
+</body>
+</html>

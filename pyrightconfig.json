@@ -1,0 +1,6 @@
+{
+  "venvPath": ".",
+  "pythonPath": "/usr/bin/python3",
+  "reportMissingModuleSource": "none",
+  "reportMissingImports": "none"
+}

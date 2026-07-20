@@ -1,0 +1,33 @@
+# =============================================================
+# Gitignore para o projeto Vibe Coluna (Monorepo IoT)
+# =============================================================
+
+# Python / Django
+venv/
+.venv/
+.venv_new/
+__pycache__/
+*.py[cod]
+*.egg-info/
+db.sqlite3
+.env
+*.env
+staticfiles/
+
+# PlatformIO / C++
+.pio/
+.pioenvs/
+.piolibdeps/
+.clang_complete
+.gcc-flags.json
+/compile_commands.json
+
+# Editores & SO
+.vscode/
+.idea/
+*.code-workspace
+.DS_Store
+Thumbs.db
+
+# Node (caso use)
+node_modules/

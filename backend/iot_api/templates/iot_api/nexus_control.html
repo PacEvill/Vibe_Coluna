@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus Control - Posture Monitor</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background-color: #121212; 
+            color: #ffffff; 
+            text-align: center; 
+            margin: 0;
+            padding: 0;
+        }
+        .container { 
+            max-width: 800px; 
+            margin: 0 auto; 
+            padding: 20px; 
+        }
+        h1 { 
+            color: #00e676; 
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 5px;
+        }
+        p { color: #888; }
+        .card { 
+            background: #1e1e1e; 
+            border-radius: 12px; 
+            padding: 30px; 
+            box-shadow: 0 8px 16px rgba(0,0,0,0.5); 
+            margin-top: 30px; 
+        }
+        .reading { 
+            font-size: 4em; 
+            font-weight: bold; 
+            color: #29b6f6; 
+            margin: 20px 0; 
+            text-shadow: 0 0 10px rgba(41, 182, 246, 0.3);
+        }
+        .status { 
+            font-size: 1.5em; 
+            padding: 15px; 
+            border-radius: 8px; 
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .status.ok { 
+            background-color: rgba(0, 230, 118, 0.15); 
+            color: #00e676; 
+            border: 1px solid #00e676;
+        }
+        .status.bad { 
+            background-color: rgba(255, 23, 68, 0.15); 
+            color: #ff1744; 
+            border: 1px solid #ff1744;
+        }
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 20px; 
+        }
+        th, td { 
+            padding: 15px; 
+            border-bottom: 1px solid #333; 
+        }
+        th { 
+            color: #aaa; 
+            text-align: left; 
+            text-transform: uppercase;
+            font-size: 0.85em;
+            letter-spacing: 1px;
+        }
+        td { color: #ddd; }
+        tr:hover { background-color: #2a2a2a; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Nexus Control</h1>
+        <p>Monitoramento de Postura Wearable IoT</p>
+        
+        <div class="card">
+            <h2>Última Leitura do Sensor</h2>
+            <div class="reading" id="latest-value">-- cm</div>
+            <div class="status" id="status-indicator">Aguardando dados...</div>
+        </div>
+
+        <div class="card">
+            <h2>Histórico Recente</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Data e Hora</th>
+                        <th>Distância Lida (cm)</th>
+                    </tr>
+                </thead>
+                <tbody id="history-body">
+                    <tr><td colspan="2">Carregando dados do servidor...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        async function fetchData() {
+            try {
+                // Chama a API que lista os dados (já vem limitado e ordenado do backend)
+                const response = await fetch('/api/data/');
+                const data = await response.json();
+                
+                if (data.length > 0) {
+                    const latest = data[0];
+                    const distance = latest.payload.value;
+                    
+                    document.getElementById('latest-value').innerText = distance.toFixed(2) + ' cm';
+                    
+                    // Lógica visual: se a distância abaixar muito, considera postura degradada
+                    const statusEl = document.getElementById('status-indicator');
+                    if (distance < 25) { 
+                        statusEl.innerText = "ALERTA: Postura Degradada";
+                        statusEl.className = "status bad";
+                    } else {
+                        statusEl.innerText = "Postura Correta";
+                        statusEl.className = "status ok";
+                    }
+
+                    // Preencher tabela
+                    const tbody = document.getElementById('history-body');
+                    tbody.innerHTML = '';
+                    
+                    data.forEach(item => {
+                        const tr = document.createElement('tr');
+                        const dateObj = new Date(item.timestamp);
+                        const dateStr = dateObj.toLocaleDateString('pt-BR') + ' ' + dateObj.toLocaleTimeString('pt-BR');
+                        const val = item.payload.value.toFixed(2) + ' cm';
+                        tr.innerHTML = `<td>${dateStr}</td><td>${val}</td>`;
+                        tbody.appendChild(tr);
+                    });
+                }
+            } catch (err) {
+                console.error("Erro ao buscar dados da API:", err);
+            }
+        }
+        
+        // Atualiza a cada 1 segundo para parecer mais rápido
+        setInterval(fetchData, 1000);
+        fetchData();
+    </script>
+</body>
+</html>
